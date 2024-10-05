@@ -26,7 +26,7 @@ const io = new Server(server, {
   cors: {
     origin:
       process.env.NODE_ENV === "production"
-        ? "https://sync-study.vercel.app"
+        ? "https://www.studysync.study"
         : "http://localhost:3000",
     methods: ["GET", "POST"],
   },
