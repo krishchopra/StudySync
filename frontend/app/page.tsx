@@ -54,7 +54,7 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="py-6 mt-12">
+      <footer className="py-6 pt-20">
         <div className="max-w-4xl mx-auto px-4 text-center font-semibold text-gray-600">
           <p>&copy; 2024 StudySync. All rights reserved.</p>
         </div>
