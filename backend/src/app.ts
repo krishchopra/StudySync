@@ -26,7 +26,7 @@ const io = new Server(server, {
   cors: {
     origin:
       process.env.NODE_ENV === "production"
-        ? "http://localhost:3000" // edit this to be the frontend url when deployed!
+        ? "https://sync-study.vercel.app"
         : "http://localhost:3000",
     methods: ["GET", "POST"],
   },
@@ -78,8 +78,11 @@ io.on("connection", (socket) => {
     const room = rooms.get(roomId);
     if (room) {
       const userName = room.users.get(socket.id) || "Anonymous";
-      const broadcastMessage = { ...message, text: `${userName}: ${message.text}` };
-      console.log('Broadcasting message:', broadcastMessage);
+      const broadcastMessage = {
+        ...message,
+        text: `${userName}: ${message.text}`,
+      };
+      console.log("Broadcasting message:", broadcastMessage);
       io.to(roomId).emit("chatMessage", broadcastMessage);
     }
   });
