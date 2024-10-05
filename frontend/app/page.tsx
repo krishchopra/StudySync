@@ -47,15 +47,15 @@ export default function Home() {
             <Link href="/" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full text-lg transition duration-300 transform hover:scale-105">
               Create Session
             </Link>
-            <Link href="/" className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full text-lg transition duration-300 transform hover:scale-105">
+            <Link href="/" className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full text-lg transition duration-300 transform hover:scale-105">
               Join Session
             </Link>
           </div>
         </div>
       </main>
 
-      <footer className="bg-gray-100 py-6 mt-12">
-        <div className="max-w-4xl mx-auto px-4 text-center text-gray-600">
+      <footer className="py-6 mt-12">
+        <div className="max-w-4xl mx-auto px-4 text-center font-semibold text-gray-600">
           <p>&copy; 2024 StudySync. All rights reserved.</p>
         </div>
       </footer>
