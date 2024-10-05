@@ -1,6 +1,61 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Link from 'next/link';
+import io from 'socket.io-client';
 
 export default function Home() {
+  const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [sessionId, setSessionId] = useState('');
+  const router = useRouter();
+
+  const createSession = async () => {
+    setIsCreating(true);
+    try {
+      const socket = io('http://localhost:3001');
+      socket.emit('createRoom');
+      socket.on('roomCreated', (roomId) => {
+        router.push(`/session/${roomId}`);
+        toast.success('Session created successfully!');
+      });
+    } catch (error) {
+      console.error("Error creating session:", error);
+      toast.error('Failed to create session. Please try again.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const joinSession = async () => {
+    if (!sessionId) {
+      toast.error('Please enter a session ID');
+      return;
+    }
+
+    setIsJoining(true);
+
+    try {
+      const socket = io('http://localhost:3001');
+      socket.emit('joinRoom', sessionId);
+      socket.on('roomJoined', (roomId) => {
+        router.push(`/session/${roomId}`);
+        toast.success('Joined session successfully!');
+      });
+      socket.on('roomError', (errorMessage) => {
+        toast.error(errorMessage);
+      });
+    } catch (error) {
+      console.error("Error joining session:", error);
+      toast.error('Failed to join session. Please try again.');
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100">
       <main className="max-w-4xl mx-auto px-4 py-12">
@@ -43,22 +98,13 @@ export default function Home() {
         </div>
 
         <div className="text-center">
-          <div className="flex justify-center space-x-4">
-            <Link href="/" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full text-lg transition duration-300 transform hover:scale-105">
-              Create Session
+          <button className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full text-lg transition duration-300 transform hover:scale-105 disabled:opacity-50">
+            <Link href="/session">
+              Start studying!
             </Link>
-            <Link href="/" className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full text-lg transition duration-300 transform hover:scale-105">
-              Join Session
-            </Link>
-          </div>
+          </button>
         </div>
       </main>
-
-      <footer className="py-6 pt-20">
-        <div className="max-w-4xl mx-auto px-4 text-center font-semibold text-gray-600">
-          <p>&copy; 2024 StudySync. All rights reserved.</p>
-        </div>
-      </footer>
     </div>
   );
 }
