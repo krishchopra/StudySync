@@ -6,6 +6,7 @@ import io, { Socket } from "socket.io-client";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 
 type ChatMessage = {
   id: string;
@@ -14,11 +15,10 @@ type ChatMessage = {
 
 export default function Session() {
   const { sessionId } = useParams();
-  const [name, setName] = useState("");
+  const { user } = useUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [tempName, setTempName] = useState("");
   const [roomId, setRoomId] = useState("");
   const router = useRouter();
 
@@ -32,8 +32,9 @@ export default function Session() {
 
     newSocket.on("connect", () => {
       console.log("Connected to server");
-      if (sessionId) {
+      if (sessionId && user) {
         newSocket.emit("joinRoom", sessionId);
+        newSocket.emit("setName", { roomId: sessionId, name: user.firstName });
       }
     });
 
@@ -60,25 +61,11 @@ export default function Session() {
     return () => {
       newSocket.disconnect();
     };
-  }, [sessionId, router]);
-
-  const handleNameSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (tempName.trim() && socket && sessionId) {
-      setName(tempName);
-      socket.emit("setName", { roomId: sessionId, name: tempName });
-    } else {
-      toast.error("Please enter a valid name.");
-    }
-  };
+  }, [sessionId, router, user]);
 
   const handleMessageSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!name) {
-      toast.error("Please set your name before sending a message.");
-      return;
-    }
-    if (inputMessage.trim() && socket && name) {
+    if (inputMessage.trim() && socket && user) {
       const newMessage: ChatMessage = {
         id: Date.now().toString(),
         text: inputMessage,
@@ -98,25 +85,9 @@ export default function Session() {
           Session ID: <span className="font-bold">{sessionId}</span>
         </p>
 
-        {!name ? (
-          <form onSubmit={handleNameSubmit} className="mb-6">
-            <input
-              type="text"
-              value={tempName}
-              onChange={(e) => setTempName(e.target.value)}
-              placeholder="Enter your name"
-              className="w-full p-2 border rounded text-black"
-            />
-            <button
-              type="submit"
-              className="mt-2 bg-blue-600 text-white px-4 py-2 rounded"
-            >
-              Set Name
-            </button>
-          </form>
-        ) : (
+        {user && (
           <div className="mb-6">
-            <p className="text-lg text-black">Welcome, {name}!</p>
+            <p className="text-lg text-black">Welcome, {user.firstName}!</p>
           </div>
         )}
 

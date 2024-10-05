@@ -79,7 +79,7 @@ io.on("connection", (socket) => {
     if (room) {
       const userName = room.users.get(socket.id) || "Anonymous";
       const broadcastMessage = {
-        ...message,
+        id: message.id,
         text: `${userName}: ${message.text}`,
       };
       console.log("Broadcasting message:", broadcastMessage);
