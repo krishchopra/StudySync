@@ -25,11 +25,15 @@ export default function SessionLanding() {
   }, [router]);
 
   useEffect(() => {
-    const socket = io("http://localhost:3001");
+    const url =
+      process.env.NODE_ENV === "production"
+        ? "https://studysync-lg2d.onrender.com"
+        : "http://localhost:3001";
+    const socket = io(url);
 
     const fetchOpenRooms = async () => {
       try {
-        const response = await fetch("http://localhost:3001/open-rooms");
+        const response = await fetch(url + "/open-rooms");
         const data = await response.json();
         setOpenRooms(data.rooms);
       } catch (error) {
@@ -99,9 +103,11 @@ export default function SessionLanding() {
     setIsJoining(true);
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/check-room/${sessionId}`
-      );
+      const url =
+        process.env.NODE_ENV === "production"
+          ? "https://studysync-lg2d.onrender.com"
+          : "http://localhost:3001";
+      const response = await fetch(`${url}/check-room/${sessionId}`);
       const data = await response.json();
 
       if (data.exists) {
@@ -121,7 +127,7 @@ export default function SessionLanding() {
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 p-8">
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6 flex flex-col items-center">
         <h1 className="text-3xl font-bold text-blue-800 mb-6">Study Session</h1>
-        <p className="text-xl mb-8">
+        <p className="text-xl mb-8 text-black">
           Create a new session or join an existing one.
         </p>
 

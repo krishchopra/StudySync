@@ -16,7 +16,11 @@ export default function Home() {
   const createSession = async () => {
     setIsCreating(true);
     try {
-      const socket = io('http://localhost:3001');
+      const url =
+        process.env.NODE_ENV === "production"
+          ? "https://studysync-lg2d.onrender.com"
+          : "http://localhost:3001";
+      const socket = io(url);
       socket.emit('createRoom');
       socket.on('roomCreated', (roomId) => {
         router.push(`/session/${roomId}`);
@@ -39,7 +43,11 @@ export default function Home() {
     setIsJoining(true);
 
     try {
-      const socket = io('http://localhost:3001');
+      const url =
+        process.env.NODE_ENV === "production"
+          ? "https://studysync-lg2d.onrender.com"
+          : "http://localhost:3001";
+      const socket = io(url);
       socket.emit('joinRoom', sessionId);
       socket.on('roomJoined', (roomId) => {
         router.push(`/session/${roomId}`);
@@ -69,7 +77,7 @@ export default function Home() {
         <div className="grid md:grid-cols-2 gap-8 mb-12">
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h2 className="text-2xl font-semibold text-blue-700 mb-4">Key Features</h2>
-            <ul className="space-y-2">
+            <ul className="space-y-2 text-black">
               {[
                 "Create collaborative study sessions",
                 "Track attention and earn points",
