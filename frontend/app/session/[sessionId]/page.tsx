@@ -63,11 +63,17 @@ export default function Session() {
     if (tempName.trim() && socket && sessionId) {
       setName(tempName);
       socket.emit('setName', { roomId: sessionId, name: tempName });
+    } else {
+      toast.error('Please enter a valid name.');
     }
   };
 
   const handleMessageSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!name) {
+      toast.error('Please set your name before sending a message.');
+      return;
+    }
     if (inputMessage.trim() && socket && name) {
       const newMessage: ChatMessage = {
         id: Date.now().toString(),
@@ -75,6 +81,8 @@ export default function Session() {
       };
       socket.emit('sendMessage', { roomId: sessionId, message: newMessage });
       setInputMessage('');
+    } else {
+      toast.error('Please enter a valid message');
     }
   };
 
