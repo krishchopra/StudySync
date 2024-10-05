@@ -6,12 +6,14 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Link from 'next/link';
 import io from 'socket.io-client';
+import { useUser, SignInButton } from "@clerk/nextjs";
 
 export default function Home() {
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [sessionId, setSessionId] = useState('');
   const router = useRouter();
+  const { isSignedIn, user } = useUser();
 
   const createSession = async () => {
     setIsCreating(true);
@@ -106,11 +108,19 @@ export default function Home() {
         </div>
 
         <div className="text-center">
-          <button className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full text-lg transition duration-300 transform hover:scale-105 disabled:opacity-50">
-            <Link href="/session">
-              Start studying!
-            </Link>
-          </button>
+          {isSignedIn ? (
+            <button className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full text-lg transition duration-300 transform hover:scale-105 disabled:opacity-50">
+              <Link href="/session">
+                Start studying!
+              </Link>
+            </button>
+          ) : (
+            <SignInButton mode="modal">
+              <button className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full text-lg transition duration-300 transform hover:scale-105 disabled:opacity-50">
+                Sign in to start studying!
+              </button>
+            </SignInButton>
+          )}
         </div>
       </main>
     </div>
