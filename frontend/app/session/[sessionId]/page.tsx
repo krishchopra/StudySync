@@ -44,24 +44,25 @@ export default function Session() {
       }
     });
 
-    newSocket.on('error', (message) => {
-      toast.error(message);
+    newSocket.on('roomError', (message) => {
+      router.push(`/session?error=${encodeURIComponent(message)}`);
     });
 
     newSocket.on('chatMessage', (message: ChatMessage) => {
+      console.log('Received message:', message);
       setMessages((prevMessages) => [...prevMessages, message]);
     });
 
     return () => {
       newSocket.disconnect();
     };
-  }, [sessionId]);
+  }, [sessionId, router]);
 
   const handleNameSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (tempName.trim() && socket) {
+    if (tempName.trim() && socket && sessionId) {
       setName(tempName);
-      socket.emit('setName', { sessionId, name: tempName });
+      socket.emit('setName', { roomId: sessionId, name: tempName });
     }
   };
 
@@ -72,7 +73,7 @@ export default function Session() {
         id: Date.now().toString(),
         text: inputMessage,
       };
-      socket.emit('sendMessage', { sessionId, message: newMessage });
+      socket.emit('sendMessage', { roomId: sessionId, message: newMessage });
       setInputMessage('');
     }
   };
@@ -81,7 +82,7 @@ export default function Session() {
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 p-8">
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
         <h1 className="text-3xl font-bold text-blue-800 mb-6">Study Session</h1>
-        <p className="text-xl mb-4">Session ID: {sessionId}</p>
+        <p className="text-xl mb-4">Session ID: <span className="font-bold">{sessionId}</span></p>
         
         {!name ? (
           <form onSubmit={handleNameSubmit} className="mb-6">
@@ -115,7 +116,7 @@ export default function Session() {
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Type a message"
+            placeholder="Type a message..."
             className="w-full p-2 border rounded"
           />
           <button type="submit" className="mt-2 bg-blue-600 text-white px-4 py-2 rounded">

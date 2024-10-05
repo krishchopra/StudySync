@@ -16,6 +16,11 @@ app.get("/check-room/:roomId", (req, res) => {
   res.json({ exists: roomExists });
 });
 
+app.get("/open-rooms", (_req, res) => {
+  const openRooms = Array.from(rooms.keys());
+  res.json({ rooms: openRooms });
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -58,13 +63,14 @@ io.on("connection", (socket) => {
       socket.join(roomId);
       socket.emit("roomJoined", roomId);
     } else {
-      socket.emit("roomError", "Room does not exist");
+      socket.emit("roomError", "Room does not exist!");
     }
   });
 
   socket.on("setName", ({ roomId, name }) => {
     if (rooms.has(roomId)) {
       rooms.get(roomId).users.set(socket.id, name);
+      console.log(`User ${socket.id} set name to ${name} in room ${roomId}`);
     }
   });
 
@@ -73,6 +79,7 @@ io.on("connection", (socket) => {
     if (room) {
       const userName = room.users.get(socket.id) || "Anonymous";
       const broadcastMessage = { ...message, text: `${userName}: ${message.text}` };
+      console.log('Broadcasting message:', broadcastMessage);
       io.to(roomId).emit("chatMessage", broadcastMessage);
     }
   });
@@ -84,6 +91,7 @@ io.on("connection", (socket) => {
         if (room.users.size === 0) {
           rooms.delete(roomId);
           console.log(`Room ${roomId} deleted due to no participants`);
+          io.emit("roomDeleted", roomId);
         }
       }
     });
