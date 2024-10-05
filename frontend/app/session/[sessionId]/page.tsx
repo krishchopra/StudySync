@@ -82,7 +82,7 @@ export default function Session() {
       socket.emit('sendMessage', { roomId: sessionId, message: newMessage });
       setInputMessage('');
     } else {
-      toast.error('Please enter a valid message');
+      toast.error('Please enter a valid message.');
     }
   };
 

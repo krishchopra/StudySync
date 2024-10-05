@@ -59,7 +59,11 @@ export default function SessionLanding() {
         .toString(36)
         .substring(2, 8)
         .toUpperCase();
-      const newSocket = io("http://localhost:3001");
+      const socketUrl =
+        process.env.NODE_ENV === "production"
+          ? "https://studysync-lg2d.onrender.com"
+          : "http://localhost:3001";
+      const newSocket = io(socketUrl);
 
       newSocket.on("connect", () => {
         newSocket.emit("createRoom", newSessionId);
@@ -71,6 +75,7 @@ export default function SessionLanding() {
 
       newSocket.on("roomError", (errorMessage) => {
         toast.error(errorMessage);
+        setIsCreating(false);
       });
 
       newSocket.on("roomDeleted", (deletedRoomId) => {
@@ -81,7 +86,6 @@ export default function SessionLanding() {
     } catch (error) {
       console.error("Error creating session:", error);
       toast.error("Failed to create session. Please try again.");
-    } finally {
       setIsCreating(false);
     }
   };
