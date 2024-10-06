@@ -53,17 +53,19 @@ export default function VideoCamera() {
   };
 
   const sendFrameToBackend = async (frameData: string) => {
+    const url =
+      process.env.NODE_ENV === "production"
+        ? "https://your-production-backend-url.com/process_video/"
+        : "http://localhost:8000/process_video/";
+
     try {
-      const response = await fetch(
-        `http://localhost:8000/process_video/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ image: frameData.split(',')[1] }), // Extract Base64 part only
-        }
-      );
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ image: frameData.split(',')[1] }), // extract base64 part only
+      });
       const data = await response.json();
       setApiResponse(JSON.stringify(data, null, 2));
     } catch (error) {
