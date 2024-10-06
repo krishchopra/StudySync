@@ -27,17 +27,17 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players }) => {
             key={player.id}
             className="flex justify-between items-center mb-2 leaderboard-item"
           >
-            <span className="font-semibold text-black">
+            <span className="font-semibold text-black flex-shrink-0 mr-2">
               {index + 1}. {player.name}
             </span>
             {showPoints ? (
-              <p className="text-blue-600">
+              <p className="text-blue-600 flex-shrink-0">
                 {" "}
                 <span className="font-bold">{player.points}</span> points
               </p>
             ) : (
               players.length > 1 && (
-                <div className="w-1/2 bg-gray-200 rounded-full h-2.5">
+                <div className="flex-grow bg-gray-300 rounded-full h-2.5 max-w-[50%]">
                   <div
                     className="bg-blue-600 h-2.5 rounded-full"
                     style={{ width: `${(player.points / totalPoints) * 100}%` }}
