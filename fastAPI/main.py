@@ -37,8 +37,8 @@ PITCH_DOWN_SLEEP_THRESH = 45
 
 # Phone detection thresholds
 PHONE_DETECTION_INTERVAL = 3  # Seconds
-PHONE_DETECTION_COUNT = 2
-PHONE_MAX_DETECTION_TIME = 10  # Maximum time before changing state to getOffPhone
+PHONE_DETECTION_COUNT = 4
+PHONE_MAX_DETECTION_TIME = 2  # Maximum time before changing state to getOffPhone
 
 # Initialize state tracking variables
 current_state = "Paying attention!"
@@ -54,7 +54,7 @@ on_phone_start_time = None  # Timer for "onPhone"
 # Initialize the Inference API client for phone detection
 CLIENT = InferenceHTTPClient(
     api_url="https://detect.roboflow.com",
-    api_key="tZu7n2l18p3upfbwSIMP"  # Replace with your actual API key
+    api_key="WSceltXLQDspS1JFNNlv"  # Replace with your actual API key
 )
 
 # Helper function to convert rotation matrix to angles
@@ -90,7 +90,7 @@ def update_state(pitch, yaw, roll):
             thinking_start_time = None
 
     # Check if 'distracted2' lasts more than 5 seconds, if so switch to 'sleeping'
-    if current_state == "Distracted #2..." and distracted2_start_time and time.time() - distracted2_start_time > 5:
+    if current_state == "Distracted #2..." and distracted2_start_time and time.time() - distracted2_start_time > 3 and pitch < -3:
         current_state = "Sleeping..."
         distracted2_start_time = None
 
