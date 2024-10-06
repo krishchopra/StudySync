@@ -15,9 +15,11 @@ type AttentionState =
 export default function VideoCamera({
   socket,
   roomId,
+  isScoringActive,
 }: {
   socket: Socket;
   roomId: string;
+  isScoringActive: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -39,6 +41,7 @@ export default function VideoCamera({
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
+    let pointsIntervalId: NodeJS.Timeout;
 
     async function setupCamera() {
       try {
@@ -50,7 +53,6 @@ export default function VideoCamera({
           videoRef.current.srcObject = mediaStream;
         }
 
-        // start capturing frames after the stream is set up
         intervalId = setInterval(() => {
           captureAndSendFrame();
         }, 1000);
@@ -61,18 +63,22 @@ export default function VideoCamera({
 
     setupCamera();
 
-    const pointsIntervalId = setInterval(() => {
-      calculateAndSendPoints();
-    }, 10000);
+    if (isScoringActive) {
+      pointsIntervalId = setInterval(() => {
+        calculateAndSendPoints();
+      }, 10000);
+    }
 
     return () => {
       clearInterval(intervalId);
-      clearInterval(pointsIntervalId);
+      if (pointsIntervalId) {
+        clearInterval(pointsIntervalId);
+      }
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [roomId, socket]); // remove 'stream' from dependencies
+  }, [roomId, socket, isScoringActive]);
 
   const captureAndSendFrame = () => {
     if (videoRef.current) {
@@ -104,41 +110,43 @@ export default function VideoCamera({
       console.log("Received state from backend:", newState);
       setApiResponse(newState);
 
-      let pointsToAdd = 0;
-      switch (newState) {
-        case "Paying attention!":
-          pointsToAdd = 2;
-          break;
-        case "Taking notes...":
-          pointsToAdd = 1;
-          break;
-        case "Thinking!":
-          pointsToAdd = 1;
-          break;
-        case "Distracted...":
-        case "Distracted #2...":
-          pointsToAdd = -2;
-          break;
-        case "On phone!":
-          pointsToAdd = -4;
-          break;
-        case "Get off phone!":
-          pointsToAdd = -6;
-          break;
-        default:
-          pointsToAdd = 0;
-          break;
-      }
+      if (isScoringActive) {
+        let pointsToAdd = 0;
+        switch (newState) {
+          case "Paying attention!":
+            pointsToAdd = 2;
+            break;
+          case "Taking notes...":
+            pointsToAdd = 1;
+            break;
+          case "Thinking!":
+            pointsToAdd = 1;
+            break;
+          case "Distracted...":
+          case "Distracted #2...":
+            pointsToAdd = -2;
+            break;
+          case "On phone!":
+            pointsToAdd = -4;
+            break;
+          case "Get off phone!":
+            pointsToAdd = -6;
+            break;
+          default:
+            pointsToAdd = 0;
+            break;
+        }
 
-      setTotalPoints((prevPoints) => {
-        const newTotalPoints = prevPoints + pointsToAdd;
-        console.log("Sending points update:", {
-          roomId,
-          points: newTotalPoints,
+        setTotalPoints((prevPoints) => {
+          const newTotalPoints = prevPoints + pointsToAdd;
+          console.log("Sending points update:", {
+            roomId,
+            points: newTotalPoints,
+          });
+          socket.emit("updatePoints", { roomId, points: newTotalPoints });
+          return newTotalPoints;
         });
-        socket.emit("updatePoints", { roomId, points: newTotalPoints });
-        return newTotalPoints;
-      });
+      }
 
       setAttentionStates((prevStates) => [...prevStates, newState]);
     } catch (error) {
@@ -148,6 +156,8 @@ export default function VideoCamera({
   };
 
   const calculateAndSendPoints = () => {
+    if (!isScoringActive) return;
+
     console.log("attentionStates:", attentionStates);
     const lastTenStates = attentionStates;
     const stateCounts = lastTenStates.reduce((acc, state) => {
@@ -158,10 +168,10 @@ export default function VideoCamera({
     console.log("stateCounts:", stateCounts);
 
     let pointsEarned = 0;
-    pointsEarned += (stateCounts["Paying attention!"] || 0) * 2; // Add 2 points for paying attention
-    pointsEarned += (stateCounts["Thinking!"] || 0) * 1; // Add 1 point for thinking
-    pointsEarned -= (stateCounts["Distracted..."] || 0) * 2; // Subtract 2 points for being distracted
-    pointsEarned -= (stateCounts["Distracted #2..."] || 0) * 2; // Subtract 2 points for being distracted
+    pointsEarned += (stateCounts["Paying attention!"] || 0) * 2;
+    pointsEarned += (stateCounts["Thinking!"] || 0) * 1;
+    pointsEarned -= (stateCounts["Distracted..."] || 0) * 2;
+    pointsEarned -= (stateCounts["Distracted #2..."] || 0) * 2;
 
     console.log("Points earned:", pointsEarned);
 

@@ -8,9 +8,11 @@ type Player = {
 
 type LeaderboardProps = {
   players: Player[];
+  onToggleScoring: () => void;
+  isScoringActive: boolean;
 };
 
-const Leaderboard: React.FC<LeaderboardProps> = ({ players }) => {
+const Leaderboard: React.FC<LeaderboardProps> = ({ players, onToggleScoring, isScoringActive }) => {
   const [showPoints, setShowPoints] = useState(false);
   const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
   const totalPoints = sortedPlayers.reduce(
@@ -48,12 +50,22 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players }) => {
           </li>
         ))}
       </ul>
-      <div className="flex justify-end">
+      <div className="flex justify-end space-x-2">
         <button
           onClick={() => setShowPoints(!showPoints)}
           className="mt-4 bg-blue-600 text-white py-1 rounded-full text-sm px-3 hover:bg-blue-700"
         >
           {showPoints ? "Hide Points" : "Show Points"}
+        </button>
+        <button
+          onClick={onToggleScoring}
+          className={`mt-4 text-white py-1 rounded-full text-sm px-3 transition-colors ${
+            isScoringActive
+              ? "bg-gray-400 hover:bg-gray-500"
+              : "bg-purple-600 hover:bg-purple-700"
+          }`}
+        >
+          {isScoringActive ? "Stop Scoring" : "Begin Scoring"}
         </button>
       </div>
     </div>

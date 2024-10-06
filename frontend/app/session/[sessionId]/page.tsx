@@ -30,6 +30,7 @@ export default function Session() {
   const [roomId, setRoomId] = useState("");
   const [players, setPlayers] = useState<Player[]>([]);
   const router = useRouter();
+  const [isScoringActive, setIsScoringActive] = useState(false);
 
   useEffect(() => {
     const url =
@@ -90,6 +91,8 @@ export default function Session() {
     }
   };
 
+  const handleToggleScoring = () => setIsScoringActive(!isScoringActive);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-6 flex">
@@ -102,12 +105,12 @@ export default function Session() {
           </p>
 
           <div className="mb-6">
-            {socket && <VideoCamera socket={socket} roomId={sessionId as string} />}
+            {socket && <VideoCamera socket={socket} roomId={sessionId as string} isScoringActive={isScoringActive} />}
           </div>
         </div>
 
         <div className="w-1/3 space-y-6">
-          <Leaderboard players={players} />
+          <Leaderboard players={players} onToggleScoring={handleToggleScoring} isScoringActive={isScoringActive} />
 
           <div>
             <h2 className="text-2xl font-bold text-blue-800 mb-4">Chat</h2>
