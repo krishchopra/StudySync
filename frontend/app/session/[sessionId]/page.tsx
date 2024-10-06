@@ -250,9 +250,6 @@ export default function Session() {
               <VideoCamera
                 socket={socket}
                 roomId={sessionId as string}
-                onPointsUpdate={(points) => {
-                  socket.emit("updatePoints", { roomId: sessionId, points });
-                }}
               />
             )}
           </div>

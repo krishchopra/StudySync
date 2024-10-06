@@ -10,23 +10,21 @@ type AttentionState =
   | "Distracted..."
   | "Distracted #2..."
   | "Sleeping..."
-  | "On phone!";
-
-type VideoCameraProps = {
-  socket: Socket;
-  roomId: string;
-  onPointsUpdate: (points: number) => void;
-};
+  | "On phone!"
+  | "Get off phone!";
 
 export default function VideoCamera({
   socket,
   roomId,
-  onPointsUpdate,
-}: VideoCameraProps) {
+}: {
+  socket: Socket;
+  roomId: string;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [apiResponse, setApiResponse] =
     useState<AttentionState>("Paying attention!");
+  const [points, setPoints] = useState(0);
   const [attentionStates, setAttentionStates] = useState<AttentionState[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
   const [getOffPhoneNotified, setGetOffPhoneNotified] = useState(0);
@@ -45,6 +43,7 @@ export default function VideoCamera({
     "Distracted #2...": "text-red-300",
     "Sleeping...": "text-purple-300",
     "On phone!": "text-red-300",
+    "Get off phone!": "text-red-300",
   };
 
   useEffect(() => {
@@ -111,6 +110,7 @@ export default function VideoCamera({
       });
       const data = await response.json();
       const newState = data.state as AttentionState;
+      console.log("Received state from backend:", newState);
       setApiResponse(newState);
 
       notifyUser(newState);
@@ -133,6 +133,9 @@ export default function VideoCamera({
         case "On phone!":
           pointsToAdd = -4;
           break;
+        case "Get off phone!":
+          pointsToAdd = -6;
+          break;
         case "Sleeping...":
           pointsToAdd = -5; // You can adjust points for sleeping as needed
           break;
@@ -143,6 +146,10 @@ export default function VideoCamera({
 
       setTotalPoints((prevPoints) => {
         const newTotalPoints = prevPoints + pointsToAdd;
+        console.log("Sending points update:", {
+          roomId,
+          points: newTotalPoints,
+        });
         socket.emit("updatePoints", { roomId, points: newTotalPoints });
         return newTotalPoints;
       });
@@ -213,22 +220,28 @@ export default function VideoCamera({
       return acc;
     }, {} as Record<AttentionState, number>);
 
+    console.log("stateCounts:", stateCounts);
+
     let pointsEarned = 0;
     pointsEarned += (stateCounts["Paying attention!"] || 0) * 2; // Add 2 points for paying attention
     pointsEarned += (stateCounts["Thinking!"] || 0) * 1; // Add 1 point for thinking
     pointsEarned -= (stateCounts["Distracted..."] || 0) * 2; // Subtract 2 points for being distracted
     pointsEarned -= (stateCounts["Distracted #2..."] || 0) * 2; // Subtract 2 points for being distracted
 
+    console.log("Points earned:", pointsEarned);
+
     setTotalPoints((prevPoints) => {
       const newTotalPoints = prevPoints + pointsEarned;
+      console.log("Sending points update:", { roomId, points: newTotalPoints });
       if (!isNaN(newTotalPoints)) {
-        onPointsUpdate(newTotalPoints);
+        socket.emit("updatePoints", { roomId, points: newTotalPoints });
       } else {
         console.error("Invalid points value:", newTotalPoints);
       }
       return isNaN(newTotalPoints) ? prevPoints : newTotalPoints;
     });
 
+    setPoints(pointsEarned);
     setAttentionStates([]);
   };
 
@@ -243,7 +256,7 @@ export default function VideoCamera({
       />
       <div className="mt-4 p-4 bg-black rounded-lg">
         <h3 className="text-lg font-semibold">
-          Student Attention:{" "}
+          User Attention:{" "}
           <span className={`font-medium ${stateColorMap[apiResponse]}`}>
             {apiResponse}
           </span>
