@@ -9,6 +9,7 @@ type AttentionState =
   | "Thinking!"
   | "Distracted..."
   | "Distracted #2..."
+  | "Sleeping..."
   | "On phone!";
 
 type VideoCameraProps = {
@@ -28,6 +29,13 @@ export default function VideoCamera({
     useState<AttentionState>("Paying attention!");
   const [attentionStates, setAttentionStates] = useState<AttentionState[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
+  const [getOffPhoneNotified, setGetOffPhoneNotified] = useState(0);
+  const [sleepingNotified, setSleepingNotified] = useState(0); // New state to track sleeping notification
+  const [lastNotificationTime, setLastNotificationTime] = useState<number>(0); // State to track the last notification time
+  const audio = new Audio("/phoneaway.mp3");
+  const sleepAudio = new Audio("/sleep2.mp3");
+  const alarmAudio = new Audio("/alarm.mp3");
+  const mixAudio = new Audio("/mixed.mp3");
 
   const stateColorMap = {
     "Paying attention!": "text-green-300",
@@ -35,6 +43,7 @@ export default function VideoCamera({
     "Thinking!": "text-yellow-300",
     "Distracted...": "text-red-300",
     "Distracted #2...": "text-red-300",
+    "Sleeping...": "text-purple-300",
     "On phone!": "text-red-300",
   };
 
@@ -51,7 +60,7 @@ export default function VideoCamera({
           videoRef.current.srcObject = mediaStream;
         }
 
-        // start capturing frames after the stream is set up
+        // Start capturing frames after the stream is set up
         intervalId = setInterval(() => {
           captureAndSendFrame();
         }, 1000);
@@ -73,7 +82,7 @@ export default function VideoCamera({
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [roomId, socket]); // remove 'stream' from dependencies
+  }, [roomId, socket]);
 
   const captureAndSendFrame = () => {
     if (videoRef.current) {
@@ -98,11 +107,13 @@ export default function VideoCamera({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ image: frameData.split(",")[1] }), // extract base64 part only
+        body: JSON.stringify({ image: frameData.split(",")[1] }), // Extract base64 part only
       });
       const data = await response.json();
       const newState = data.state as AttentionState;
       setApiResponse(newState);
+
+      notifyUser(newState);
 
       let pointsToAdd = 0;
       switch (newState) {
@@ -122,6 +133,9 @@ export default function VideoCamera({
         case "On phone!":
           pointsToAdd = -4;
           break;
+        case "Sleeping...":
+          pointsToAdd = -5; // You can adjust points for sleeping as needed
+          break;
         default:
           pointsToAdd = 0;
           break;
@@ -134,9 +148,60 @@ export default function VideoCamera({
       });
 
       setAttentionStates((prevStates) => [...prevStates, newState]);
+
+      if (newState !== "Get off phone!") {
+        setGetOffPhoneNotified(0);
+      } else {
+        setGetOffPhoneNotified((val) => val + 1);
+      }
+
+      if (newState !== "Sleeping...") {
+        setSleepingNotified(0);
+      } else {
+        setSleepingNotified((val) => val + 1);
+      }
     } catch (error) {
       console.error("Error sending frame to backend:", error);
       setApiResponse("Failed to get response from backend" as AttentionState);
+    }
+  };
+
+  const notifyUser = (newState: AttentionState) => {
+    const now = Date.now();
+    const timeElapsed = (now - lastNotificationTime) / 1000; // Convert to seconds
+
+    // Notify for "Get off phone!" if the user hasn't been notified yet
+    if (newState === "Get off phone!" && getOffPhoneNotified === 0 && timeElapsed > 20) {
+      console.log("Sending notification for 'Get off phone!'");
+      audio.play();
+      const notification = new Notification("GET OFF YOUR PHONE!", {
+        body: `Break time will come, study for now`,
+        icon: "../icon.ico",
+      });
+
+      notification.onclick = () => {
+        window.focus();
+      };
+
+      setLastNotificationTime(now); // Update the last notification time
+    }
+
+    // Notify for "Sleeping..." if the user hasn't been notified yet
+    if (newState === "Sleeping..." && sleepingNotified === 0 && timeElapsed > 20) {
+      console.log("Sending notification for 'Sleeping...'");
+      alarmAudio.play();
+      sleepAudio.play();
+      // mixAudio.play();
+      const notification = new Notification("Wakey Wakey", {
+        body: `It seems like you are sleeping. Please stay alert!`,
+        icon: "../icon.ico",
+      });
+
+      notification.onclick = () => {
+        window.focus();
+      };
+
+      setLastNotificationTime(now); // Update the last notification time
     }
   };
 
