@@ -13,6 +13,7 @@ type LeaderboardProps = {
 const Leaderboard: React.FC<LeaderboardProps> = ({ players }) => {
   const [showPoints, setShowPoints] = useState(false);
   const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
+  const totalPoints = sortedPlayers.reduce((sum, player) => sum + player.points, 0);
 
   return (
     <div className="bg-white rounded-lg shadow p-4">
@@ -21,8 +22,18 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players }) => {
         {sortedPlayers.map((player, index) => (
           <li key={player.id} className="flex justify-between items-center mb-2 leaderboard-item">
             <span className="font-semibold text-black">{index + 1}. {player.name}</span>
-            {showPoints &&
-            <p className='text-blue-600'> <span className='font-bold'>{player.points}</span> points</p>}
+            {showPoints ? (
+              <p className='text-blue-600'> <span className='font-bold'>{player.points}</span> points</p>
+            ) : (
+              players.length >= 2 && (
+                <div className="w-1/2 bg-gray-200 rounded-full h-2.5">
+                  <div
+                    className="bg-blue-600 h-2.5 rounded-full"
+                    style={{ width: `${(player.points / totalPoints) * 100}%` }}
+                  ></div>
+                </div>
+              )
+            )}
           </li>
         ))}
       </ul>
