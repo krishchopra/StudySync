@@ -53,16 +53,15 @@ export default function VideoCamera() {
   };
 
   const sendFrameToBackend = async (frameData: string) => {
-    // const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002';
     try {
       const response = await fetch(
-        `https://attentionhtv.onrender.com/process_video`,
+        `http://localhost:8000/process_video/`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ frame: frameData }),
+          body: JSON.stringify({ image: frameData.split(',')[1] }), // Extract Base64 part only
         }
       );
       const data = await response.json();

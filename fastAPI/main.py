@@ -120,4 +120,4 @@ async def process_video(file: dict):
     img_base64 = base64.b64encode(img_bytes).decode('utf-8')
 
     # Return the Base64-encoded processed image and the state
-    return JSONResponse({"state": current_state, "processed_image": img_base64})
+    return JSONResponse({"state": current_state})
