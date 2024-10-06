@@ -7,6 +7,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import VideoCamera from "@/app/components/VideoCamera";
 
 type ChatMessage = {
   id: string;
@@ -79,41 +80,56 @@ export default function Session() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 p-8">
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
-        <h1 className="text-3xl font-bold text-blue-800 mb-6">Study Session</h1>
-        <p className="text-xl mb-4 text-black">
-          Session ID: <span className="font-bold">{sessionId}</span>
-        </p>
+      <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-6 flex">
+        <div className="flex-grow mr-6">
+          <h1 className="text-3xl font-bold text-blue-800 mb-6">
+            Study Session
+          </h1>
+          <p className="text-xl mb-4 text-black">
+            Session ID: <span className="font-bold">{sessionId}</span>
+          </p>
 
-        {user && (
+          {user && (
+            <div className="mb-6">
+              <p className="text-lg text-black">Welcome, {user.firstName}!</p>
+            </div>
+          )}
+
           <div className="mb-6">
-            <p className="text-lg text-black">Welcome, {user.firstName}!</p>
+            <VideoCamera />
           </div>
-        )}
-
-        <div className="h-64 overflow-y-auto border rounded p-4 mb-4">
-          {messages.map((msg) => (
-            <p key={msg.id} className="mb-2 text-black">
-              {msg.text}
-            </p>
-          ))}
         </div>
 
-        <form onSubmit={handleMessageSubmit}>
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="w-full p-2 border rounded text-black"
-          />
-          <button
-            type="submit"
-            className="mt-2 bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            Send
-          </button>
-        </form>
+        <div className="w-1/3">
+          <h2 className="text-2xl font-bold text-blue-800 mb-4">Chat</h2>
+          <div className="h-96 overflow-y-auto border rounded p-4 mb-4">
+            {messages.map((msg) => {
+              const [name, ...messageParts] = msg.text.split(":");
+              const message = messageParts.join(":").trim();
+              return (
+                <p key={msg.id} className="mb-2 text-black">
+                  <strong>{name}:</strong> {message}
+                </p>
+              );
+            })}
+          </div>
+
+          <form onSubmit={handleMessageSubmit}>
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Type a message..."
+              className="w-full p-2 border rounded text-black"
+            />
+            <button
+              type="submit"
+              className="mt-2 bg-blue-600 text-white px-4 py-2 rounded w-full"
+            >
+              Send
+            </button>
+          </form>
+        </div>
       </div>
       <ToastContainer position="bottom-right" />
     </div>

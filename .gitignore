@@ -21,6 +21,7 @@
 /frontend/.DS_Store
 /frontend/*.pem
 .DS_Store
+.venv
 
 # debug
 /frontend/npm-debug.log*
