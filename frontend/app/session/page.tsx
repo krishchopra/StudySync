@@ -56,42 +56,8 @@ export default function SessionLanding() {
     };
   }, []);
 
-  const createSession = async () => {
-    setIsCreating(true);
-    try {
-      const newSessionId = Math.random()
-        .toString(36)
-        .substring(2, 8)
-        .toUpperCase();
-      const socketUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://studysync-lg2d.onrender.com"
-          : "http://localhost:3001";
-      const newSocket = io(socketUrl);
-
-      newSocket.on("connect", () => {
-        newSocket.emit("createRoom", newSessionId);
-      });
-
-      newSocket.on("roomCreated", (roomId) => {
-        router.push(`/session/${roomId}?created=true`);
-      });
-
-      newSocket.on("roomError", (errorMessage) => {
-        toast.error(errorMessage);
-        setIsCreating(false);
-      });
-
-      newSocket.on("roomDeleted", (deletedRoomId) => {
-        setOpenRooms((prevRooms) =>
-          prevRooms.filter((room) => room !== deletedRoomId)
-        );
-      });
-    } catch (error) {
-      console.error("Error creating session:", error);
-      toast.error("Failed to create session. Please try again.");
-      setIsCreating(false);
-    }
+  const createSession = () => {
+    router.push('/session/configure');
   };
 
   const joinSession = async () => {

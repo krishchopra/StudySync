@@ -48,9 +48,14 @@ function generateRoomId() {
 io.on("connection", (socket) => {
   console.log("A user connected");
 
-  socket.on("createRoom", (roomId) => {
+  socket.on("createRoom", (roomId, sessionConfig) => {
     if (!rooms.has(roomId)) {
-      rooms.set(roomId, { users: new Map() });
+      rooms.set(roomId, { 
+        users: new Map(),
+        studyNotes: sessionConfig.studyNotes,
+        quizInterval: sessionConfig.quizInterval,
+        questionsPerQuiz: sessionConfig.questionsPerQuiz
+      });
       socket.join(roomId);
       socket.emit("roomCreated", roomId);
     } else {
