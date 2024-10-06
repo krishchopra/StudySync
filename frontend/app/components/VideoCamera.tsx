@@ -1,13 +1,40 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { Socket } from "socket.io-client";
 
-export default function VideoCamera() {
+type AttentionState =
+  | "Paying attention!"
+  | "Taking notes..."
+  | "Thinking!"
+  | "Distracted..."
+  | "Distracted #2...";
+
+export default function VideoCamera({
+  socket,
+  roomId,
+}: {
+  socket: Socket;
+  roomId: string;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [apiResponse, setApiResponse] = useState<string>("");
+  const [apiResponse, setApiResponse] =
+    useState<AttentionState>("Paying attention!");
+  const [points, setPoints] = useState(0);
+  const [attentionStates, setAttentionStates] = useState<AttentionState[]>([]);
+
+  const stateColorMap = {
+    "Paying attention!": "text-green-300",
+    "Taking notes...": "text-blue-300",
+    "Thinking!": "text-yellow-300",
+    "Distracted...": "text-red-300",
+    "Distracted #2...": "text-red-300",
+  };
 
   useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
     async function setupCamera() {
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -17,6 +44,11 @@ export default function VideoCamera() {
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
         }
+
+        // start capturing frames after the stream is set up
+        intervalId = setInterval(() => {
+          captureAndSendFrame();
+        }, 1000);
       } catch (error) {
         console.error("Error accessing camera:", error);
       }
@@ -24,22 +56,18 @@ export default function VideoCamera() {
 
     setupCamera();
 
+    const pointsIntervalId = setInterval(() => {
+      calculateAndSendPoints();
+    }, 10000);
+
     return () => {
+      clearInterval(intervalId);
+      clearInterval(pointsIntervalId);
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, []);
-
-  useEffect(() => {
-    if (videoRef.current && stream) {
-      const intervalId = setInterval(() => {
-        captureAndSendFrame();
-      }, 1000); // send a frame every second
-
-      return () => clearInterval(intervalId);
-    }
-  }, [stream]);
+  }, [roomId, socket]); // remove 'stream' from dependencies
 
   const captureAndSendFrame = () => {
     if (videoRef.current) {
@@ -67,11 +95,50 @@ export default function VideoCamera() {
         body: JSON.stringify({ image: frameData.split(",")[1] }), // extract base64 part only
       });
       const data = await response.json();
-      setApiResponse(JSON.stringify(data, null, 2));
+      const newState = data.state as AttentionState;
+      console.log("Received state from backend:", newState);
+      setApiResponse(newState);
+      setAttentionStates(prevStates => {
+        const newStates = [...prevStates, newState];
+        console.log("Updated attentionStates:", newStates);
+        return newStates.slice(-10); // keep only the last 10 states
+      });
     } catch (error) {
       console.error("Error sending frame to backend:", error);
-      setApiResponse("Error: Failed to get response from backend");
+      setApiResponse("Failed to get response from backend" as AttentionState);
     }
+  };
+
+  const calculateAndSendPoints = () => {
+    console.log("attentionStates:", attentionStates);
+    const lastTenStates = attentionStates.slice(-10);
+    const stateCounts = lastTenStates.reduce((acc, state) => {
+      acc[state] = (acc[state] || 0) + 1;
+      return acc;
+    }, {} as Record<AttentionState, number>);
+
+    const attentionPercentage = (stateCounts["Paying attention!"] || 0) / 10;
+    const thinkingPercentage = (stateCounts["Thinking!"] || 0) / 10;
+    const distractionPercentage =
+      ((stateCounts["Distracted..."] || 0) +
+        (stateCounts["Distracted #2..."] || 0)) /
+      10;
+
+    let pointsEarned = Math.round(attentionPercentage * 10);
+
+    if (distractionPercentage > 0) {
+      pointsEarned -= Math.round(thinkingPercentage * 5);
+    } else {
+      pointsEarned += Math.round(thinkingPercentage * 5);
+    }
+
+    pointsEarned -= Math.round(distractionPercentage * 10);
+
+    setPoints((prevPoints) => prevPoints + pointsEarned);
+    console.log("Sending points update:", { roomId, points: pointsEarned });
+    socket.emit("updatePoints", { roomId, points: pointsEarned });
+
+    setAttentionStates([]);
   };
 
   return (
@@ -84,8 +151,13 @@ export default function VideoCamera() {
         className="w-full h-auto rounded-lg transform scale-x-[-1]"
       />
       <div className="mt-4 p-4 bg-black rounded-lg">
-        <h3 className="text-lg font-semibold mb-2">User Attention:</h3>
-        <pre className="whitespace-pre-wrap">{apiResponse}</pre>
+        <h3 className="text-lg font-semibold mb-2">
+          User Attention:{" "}
+          <span className={`font-medium ${stateColorMap[apiResponse]}`}>
+            {apiResponse}
+          </span>
+        </h3>
+        <p className="text-white">Points: {points}</p>
       </div>
     </div>
   );

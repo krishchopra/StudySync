@@ -34,7 +34,7 @@ DISTRACTED_TIME_NOTES = 5
 ROLL_BIDIRECTION_THRESH = 10
 
 # Initialize state tracking variables
-current_state = "paying attention"
+current_state = "Paying attention!"
 thinking_start_time = None
 notes_start_time = None
 
@@ -50,22 +50,22 @@ def update_state(pitch, yaw, roll):
     global current_state, thinking_start_time, notes_start_time
 
     if -PITCH_FORWARD_THRESH <= pitch <= PITCH_FORWARD_THRESH and abs(yaw) <= 15:
-        current_state = "paying attention"
+        current_state = "Paying attention!"
         thinking_start_time = None
         notes_start_time = None
     elif (pitch < PITCH_DOWN_THRESH and abs(roll) < ROLL_BIDIRECTION_THRESH) or (pitch < PITCH_DOWN_THRESH_WITH_ROLL):
-        if current_state != "taking notes" and current_state != "distracted2" and current_state != "distracted":
-            current_state = "taking notes"
+        if current_state != "Taking notes..." and current_state != "Distracted #2..." and current_state != "Distracted...":
+            current_state = "Taking notes..."
             notes_start_time = time.time() if notes_start_time is None else notes_start_time
         elif notes_start_time and time.time() - notes_start_time > DISTRACTED_TIME_NOTES:
-            current_state = "distracted2"
+            current_state = "Distracted #2..."
             notes_start_time = None
     elif yaw < YAW_LEFT_THRESH or yaw > YAW_RIGHT_THRESH or pitch > PITCH_FORWARD_THRESH:
-        if current_state != "thinking" and current_state != "distracted2" and current_state != "distracted":
-            current_state = "thinking"
+        if current_state != "Thinking!" and current_state != "Distracted #2..." and current_state != "Distracted #2...":
+            current_state = "Thinking!"
             thinking_start_time = time.time() if thinking_start_time is None else thinking_start_time
         elif thinking_start_time and time.time() - thinking_start_time > DISTRACTED_TIME_THINKING:
-            current_state = "distracted"
+            current_state = "Distracted..."
             thinking_start_time = None
 
 # API endpoint for processing a base64-encoded string representing the video frame (JPG)
