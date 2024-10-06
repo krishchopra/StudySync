@@ -115,11 +115,16 @@ export default function VideoCamera({
         case "Distracted #2...":
           pointsToAdd = -2;
           break;
+        // default:
+        //   pointsToAdd = -4;
       }
 
       setTotalPoints((prevPoints) => {
         const newTotalPoints = prevPoints + pointsToAdd;
-        console.log("Sending points update:", { roomId, points: newTotalPoints });
+        console.log("Sending points update:", {
+          roomId,
+          points: newTotalPoints,
+        });
         socket.emit("updatePoints", { roomId, points: newTotalPoints });
         return newTotalPoints;
       });
@@ -174,13 +179,12 @@ export default function VideoCamera({
         className="w-full h-auto rounded-lg transform scale-x-[-1]"
       />
       <div className="mt-4 p-4 bg-black rounded-lg">
-        <h3 className="text-lg font-semibold mb-2">
+        <h3 className="text-lg font-semibold">
           User Attention:{" "}
           <span className={`font-medium ${stateColorMap[apiResponse]}`}>
             {apiResponse}
           </span>
         </h3>
-        <p className="text-white">Points: {totalPoints}</p>
       </div>
     </div>
   );
