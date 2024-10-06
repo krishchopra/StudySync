@@ -14,10 +14,10 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or specify domains
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods like POST, GET, OPTIONS, etc.
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize Mediapipe Face Mesh
@@ -33,18 +33,23 @@ PITCH_DOWN_THRESH_WITH_ROLL = -8
 DISTRACTED_TIME_THINKING = 5
 DISTRACTED_TIME_NOTES = 5
 ROLL_BIDIRECTION_THRESH = 10
+PITCH_DOWN_SLEEP_THRESH = 45
 
 # Phone detection thresholds
 PHONE_DETECTION_INTERVAL = 3  # Seconds
 PHONE_DETECTION_COUNT = 2
+PHONE_MAX_DETECTION_TIME = 10  # Maximum time before changing state to getOffPhone
 
 # Initialize state tracking variables
-current_state = "Paying attention!"
+current_state = "paying attention"
 thinking_start_time = None
 notes_start_time = None
+distracted2_start_time = None  # Track start time of 'distracted2' state
 on_phone_state = False
 phone_detection_count = 0
 phone_last_detected_time = None
+on_phone_start_time = None  # Timer for "onPhone"
+
 
 # Initialize the Inference API client for phone detection
 CLIENT = InferenceHTTPClient(
@@ -61,26 +66,33 @@ def rotation_matrix_to_angles(rotation_matrix):
 
 # Function to update the state based on pitch and yaw
 def update_state(pitch, yaw, roll):
-    global current_state, thinking_start_time, notes_start_time
+    global current_state, thinking_start_time, notes_start_time, distracted2_start_time
 
     if -PITCH_FORWARD_THRESH <= pitch <= PITCH_FORWARD_THRESH and abs(yaw) <= 15:
-        current_state = "Paying attention!"
+        current_state = "paying attention"
         thinking_start_time = None
         notes_start_time = None
+        distracted2_start_time = None
     elif (pitch < PITCH_DOWN_THRESH and abs(roll) < ROLL_BIDIRECTION_THRESH) or (pitch < PITCH_DOWN_THRESH_WITH_ROLL):
-        if current_state != "Taking notes..." and current_state != "Distracted #2..." and current_state != "Distracted...":
-            current_state = "Taking notes..."
+        if current_state != "taking notes" and current_state != "distracted2" and current_state != "distracted" and current_state != "sleeping":
+            current_state = "taking notes"
             notes_start_time = time.time() if notes_start_time is None else notes_start_time
         elif notes_start_time and time.time() - notes_start_time > DISTRACTED_TIME_NOTES:
-            current_state = "Distracted #2..."
+            current_state = "distracted2"
+            distracted2_start_time = time.time() if distracted2_start_time is None else distracted2_start_time
             notes_start_time = None
     elif yaw < YAW_LEFT_THRESH or yaw > YAW_RIGHT_THRESH or pitch > PITCH_FORWARD_THRESH:
-        if current_state != "Thinking!" and current_state != "Distracted #2..." and current_state != "Distracted...":
-            current_state = "Thinking!"
+        if current_state != "thinking" and current_state != "distracted2" and current_state != "distracted":
+            current_state = "thinking"
             thinking_start_time = time.time() if thinking_start_time is None else thinking_start_time
         elif thinking_start_time and time.time() - thinking_start_time > DISTRACTED_TIME_THINKING:
-            current_state = "Distracted..."
+            current_state = "distracted"
             thinking_start_time = None
+
+    # Check if 'distracted2' lasts more than 5 seconds, if so switch to 'sleeping'
+    if current_state == "distracted2" and distracted2_start_time and time.time() - distracted2_start_time > 5:
+        current_state = "sleeping"
+        distracted2_start_time = None
 
 # Function to detect phone in the frame
 def detect_phone(image):
@@ -95,7 +107,7 @@ def detect_phone(image):
 
 # Function to manage phone detection state
 def update_phone_state(phone_detected):
-    global on_phone_state, phone_detection_count, phone_last_detected_time
+    global on_phone_state, phone_detection_count, phone_last_detected_time, on_phone_start_time
     
     current_time = time.time()
     
@@ -106,11 +118,18 @@ def update_phone_state(phone_detected):
         phone_last_detected_time = current_time
         
         if phone_detection_count >= PHONE_DETECTION_COUNT:
-            on_phone_state = True
+            if not on_phone_state:
+                on_phone_state = True
+                on_phone_start_time = time.time()  # Start timer when the phone is detected
+            
+            # If phone is detected for more than 10 seconds, change state to "getOffPhone"
+            elif on_phone_state and current_time - on_phone_start_time > PHONE_MAX_DETECTION_TIME:
+                on_phone_state = "getOffPhone"
     else:
         if phone_last_detected_time and current_time - phone_last_detected_time > PHONE_DETECTION_INTERVAL:
             on_phone_state = False
             phone_detection_count = 0
+            on_phone_start_time = None  # Reset the timer when phone is not detected
 
 # API endpoint for processing a base64-encoded string representing the video frame (JPG)
 @app.post("/process_video/")
@@ -164,6 +183,10 @@ async def process_video(file: dict):
     phone_detected = detect_phone(image)
     update_phone_state(phone_detected)
     
-    # Return the state, prioritizing "onPhone" over all other states
-    final_state = "On phone!" if on_phone_state else current_state
+    # Return the state, prioritizing "onPhone" or "getOffPhone" over all other states
+    if on_phone_state == "getOffPhone":
+        final_state = "getOffPhone"
+    else:
+        final_state = "onPhone" if on_phone_state else current_state
+    
     return JSONResponse({"state": final_state})
