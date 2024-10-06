@@ -24,12 +24,14 @@ mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 # Thresholds for detecting attention states
-PITCH_FORWARD_THRESH = 15
-YAW_LEFT_THRESH = -40
-YAW_RIGHT_THRESH = 40
-PITCH_DOWN_THRESH = -30
+PITCH_FORWARD_THRESH = 25
+YAW_LEFT_THRESH = -30
+YAW_RIGHT_THRESH = 30
+PITCH_DOWN_THRESH = -15
+PITCH_DOWN_THRESH_WITH_ROLL = -8
 DISTRACTED_TIME_THINKING = 5
 DISTRACTED_TIME_NOTES = 5
+ROLL_BIDIRECTION_THRESH = 10
 
 # Initialize state tracking variables
 current_state = "paying attention"
@@ -44,14 +46,14 @@ def rotation_matrix_to_angles(rotation_matrix):
     return np.array([x, y, z]) * 180. / math.pi
 
 # Function to update the state based on pitch and yaw
-def update_state(pitch, yaw):
+def update_state(pitch, yaw, roll):
     global current_state, thinking_start_time, notes_start_time
 
     if -PITCH_FORWARD_THRESH <= pitch <= PITCH_FORWARD_THRESH and abs(yaw) <= 15:
         current_state = "paying attention"
         thinking_start_time = None
         notes_start_time = None
-    elif pitch < PITCH_DOWN_THRESH:
+    elif (pitch < PITCH_DOWN_THRESH and abs(roll) < ROLL_BIDIRECTION_THRESH) or (pitch < PITCH_DOWN_THRESH_WITH_ROLL):
         if current_state != "taking notes" and current_state != "distracted2" and current_state != "distracted":
             current_state = "taking notes"
             notes_start_time = time.time() if notes_start_time is None else notes_start_time
@@ -110,9 +112,9 @@ async def process_video(file: dict):
                     face_coordination_in_real_world, face_coordination_in_image, cam_matrix, dist_matrix
                 )
                 rotation_matrix, _ = cv2.Rodrigues(rotation_vec)
-                pitch, yaw, _ = rotation_matrix_to_angles(rotation_matrix)
+                pitch, yaw, roll = rotation_matrix_to_angles(rotation_matrix)
 
-                update_state(pitch, yaw)
+                update_state(pitch, yaw, roll)
 
     # Encode the processed image to JPG and convert to Base64
     _, img_encoded = cv2.imencode('.jpg', image)
