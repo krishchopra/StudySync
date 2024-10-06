@@ -8,6 +8,7 @@ import math
 import time
 import base64
 from io import BytesIO
+from inference_sdk import InferenceHTTPClient
 
 app = FastAPI()
 
@@ -33,10 +34,23 @@ DISTRACTED_TIME_THINKING = 5
 DISTRACTED_TIME_NOTES = 5
 ROLL_BIDIRECTION_THRESH = 10
 
+# Phone detection thresholds
+PHONE_DETECTION_INTERVAL = 3  # Seconds
+PHONE_DETECTION_COUNT = 2
+
 # Initialize state tracking variables
 current_state = "Paying attention!"
 thinking_start_time = None
 notes_start_time = None
+on_phone_state = False
+phone_detection_count = 0
+phone_last_detected_time = None
+
+# Initialize the Inference API client for phone detection
+CLIENT = InferenceHTTPClient(
+    api_url="https://detect.roboflow.com",
+    api_key="tZu7n2l18p3upfbwSIMP"  # Replace with your actual API key
+)
 
 # Helper function to convert rotation matrix to angles
 def rotation_matrix_to_angles(rotation_matrix):
@@ -68,6 +82,36 @@ def update_state(pitch, yaw, roll):
             current_state = "Distracted..."
             thinking_start_time = None
 
+# Function to detect phone in the frame
+def detect_phone(image):
+    try:
+        cv2.imwrite("current_frame.jpg", image)
+        result = CLIENT.infer("current_frame.jpg", model_id="mobile-phone-detection-mtsje/1")
+        if 'predictions' in result and len(result['predictions']) > 0:
+            return True  # Phone detected
+    except Exception as e:
+        print(f"Phone detection error: {e}")
+    return False  # Default to no phone detected if any error occurs
+
+# Function to manage phone detection state
+def update_phone_state(phone_detected):
+    global on_phone_state, phone_detection_count, phone_last_detected_time
+    
+    current_time = time.time()
+    
+    if phone_detected:
+        if phone_last_detected_time is None or current_time - phone_last_detected_time > PHONE_DETECTION_INTERVAL:
+            phone_detection_count = 0
+        phone_detection_count += 1
+        phone_last_detected_time = current_time
+        
+        if phone_detection_count >= PHONE_DETECTION_COUNT:
+            on_phone_state = True
+    else:
+        if phone_last_detected_time and current_time - phone_last_detected_time > PHONE_DETECTION_INTERVAL:
+            on_phone_state = False
+            phone_detection_count = 0
+
 # API endpoint for processing a base64-encoded string representing the video frame (JPG)
 @app.post("/process_video/")
 async def process_video(file: dict):
@@ -83,8 +127,8 @@ async def process_video(file: dict):
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     
     # Convert the image to RGB for Mediapipe
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    results = face_mesh.process(image)
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    results = face_mesh.process(image_rgb)
     
     h, w, _ = image.shape
     face_coordination_in_image = []
@@ -116,10 +160,10 @@ async def process_video(file: dict):
 
                 update_state(pitch, yaw, roll)
 
-    # Encode the processed image to JPG and convert to Base64
-    _, img_encoded = cv2.imencode('.jpg', image)
-    img_bytes = img_encoded.tobytes()
-    img_base64 = base64.b64encode(img_bytes).decode('utf-8')
-
-    # Return the Base64-encoded processed image and the state
-    return JSONResponse({"state": current_state})
+    # Detect if a phone is present in the image
+    phone_detected = detect_phone(image)
+    update_phone_state(phone_detected)
+    
+    # Return the state, prioritizing "onPhone" over all other states
+    final_state = "onPhone" if on_phone_state else current_state
+    return JSONResponse({"state": final_state})
