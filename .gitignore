@@ -22,6 +22,7 @@
 /frontend/*.pem
 .DS_Store
 .venv
+.env
 
 # debug
 /frontend/npm-debug.log*
