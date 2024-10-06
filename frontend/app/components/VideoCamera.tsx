@@ -8,7 +8,8 @@ type AttentionState =
   | "Taking notes..."
   | "Thinking!"
   | "Distracted..."
-  | "Distracted #2...";
+  | "Distracted #2..."
+  | "On phone!";
 
 export default function VideoCamera({
   socket,
@@ -31,6 +32,7 @@ export default function VideoCamera({
     "Thinking!": "text-yellow-300",
     "Distracted...": "text-red-300",
     "Distracted #2...": "text-red-300",
+    "On phone!": "text-red-300",
   };
 
   useEffect(() => {
@@ -115,8 +117,12 @@ export default function VideoCamera({
         case "Distracted #2...":
           pointsToAdd = -2;
           break;
-        // default:
-        //   pointsToAdd = -4;
+        case "On phone!":
+          pointsToAdd = -4;
+          break;
+        default:
+          pointsToAdd = 0;
+          break;
       }
 
       setTotalPoints((prevPoints) => {
