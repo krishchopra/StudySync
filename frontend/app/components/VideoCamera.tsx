@@ -23,6 +23,7 @@ export default function VideoCamera({
     useState<AttentionState>("Paying attention!");
   const [points, setPoints] = useState(0);
   const [attentionStates, setAttentionStates] = useState<AttentionState[]>([]);
+  const [totalPoints, setTotalPoints] = useState(0);
 
   const stateColorMap = {
     "Paying attention!": "text-green-300",
@@ -98,11 +99,32 @@ export default function VideoCamera({
       const newState = data.state as AttentionState;
       console.log("Received state from backend:", newState);
       setApiResponse(newState);
-      setAttentionStates(prevStates => {
-        const newStates = [...prevStates, newState];
-        console.log("Updated attentionStates:", newStates);
-        return newStates.slice(-10); // keep only the last 10 states
+
+      let pointsToAdd = 0;
+      switch (newState) {
+        case "Paying attention!":
+          pointsToAdd = 2;
+          break;
+        case "Taking notes...":
+          pointsToAdd = 1;
+          break;
+        case "Thinking!":
+          pointsToAdd = 1;
+          break;
+        case "Distracted...":
+        case "Distracted #2...":
+          pointsToAdd = -2;
+          break;
+      }
+
+      setTotalPoints((prevPoints) => {
+        const newTotalPoints = prevPoints + pointsToAdd;
+        console.log("Sending points update:", { roomId, points: newTotalPoints });
+        socket.emit("updatePoints", { roomId, points: newTotalPoints });
+        return newTotalPoints;
       });
+
+      setAttentionStates((prevStates) => [...prevStates, newState]);
     } catch (error) {
       console.error("Error sending frame to backend:", error);
       setApiResponse("Failed to get response from backend" as AttentionState);
@@ -111,33 +133,34 @@ export default function VideoCamera({
 
   const calculateAndSendPoints = () => {
     console.log("attentionStates:", attentionStates);
-    const lastTenStates = attentionStates.slice(-10);
+    const lastTenStates = attentionStates;
     const stateCounts = lastTenStates.reduce((acc, state) => {
       acc[state] = (acc[state] || 0) + 1;
       return acc;
     }, {} as Record<AttentionState, number>);
 
-    const attentionPercentage = (stateCounts["Paying attention!"] || 0) / 10;
-    const thinkingPercentage = (stateCounts["Thinking!"] || 0) / 10;
-    const distractionPercentage =
-      ((stateCounts["Distracted..."] || 0) +
-        (stateCounts["Distracted #2..."] || 0)) /
-      10;
+    console.log("stateCounts:", stateCounts);
 
-    let pointsEarned = Math.round(attentionPercentage * 10);
+    let pointsEarned = 0;
+    pointsEarned += (stateCounts["Paying attention!"] || 0) * 2; // Add 2 points for paying attention
+    pointsEarned += (stateCounts["Thinking!"] || 0) * 1; // Add 1 point for thinking
+    pointsEarned -= (stateCounts["Distracted..."] || 0) * 2; // Subtract 2 points for being distracted
+    pointsEarned -= (stateCounts["Distracted #2..."] || 0) * 2; // Subtract 2 points for being distracted
 
-    if (distractionPercentage > 0) {
-      pointsEarned -= Math.round(thinkingPercentage * 5);
-    } else {
-      pointsEarned += Math.round(thinkingPercentage * 5);
-    }
+    console.log("Points earned:", pointsEarned);
 
-    pointsEarned -= Math.round(distractionPercentage * 10);
+    setTotalPoints((prevPoints) => {
+      const newTotalPoints = prevPoints + pointsEarned;
+      console.log("Sending points update:", { roomId, points: newTotalPoints });
+      if (!isNaN(newTotalPoints)) {
+        socket.emit("updatePoints", { roomId, points: newTotalPoints });
+      } else {
+        console.error("Invalid points value:", newTotalPoints);
+      }
+      return isNaN(newTotalPoints) ? prevPoints : newTotalPoints;
+    });
 
-    setPoints((prevPoints) => prevPoints + pointsEarned);
-    console.log("Sending points update:", { roomId, points: pointsEarned });
-    socket.emit("updatePoints", { roomId, points: pointsEarned });
-
+    setPoints(pointsEarned);
     setAttentionStates([]);
   };
 
@@ -157,7 +180,7 @@ export default function VideoCamera({
             {apiResponse}
           </span>
         </h3>
-        <p className="text-white">Points: {points}</p>
+        <p className="text-white">Points: {totalPoints}</p>
       </div>
     </div>
   );

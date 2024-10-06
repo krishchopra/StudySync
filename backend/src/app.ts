@@ -90,13 +90,19 @@ io.on("connection", (socket) => {
 
   socket.on("updatePoints", ({ roomId, points }) => {
     console.log("Received updatePoints event:", { roomId, points });
-    if (rooms.has(roomId)) {
+    if (rooms.has(roomId) && typeof points === 'number' && !isNaN(points)) {
       const room = rooms.get(roomId);
       const user = room.users.get(socket.id);
       if (user) {
-        user.points += points;
+        console.log("Before update - User points:", user.points);
+        user.points = points;
+        console.log("After update - User points:", user.points);
         updateLeaderboard(roomId);
+      } else {
+        console.log("User not found in room");
       }
+    } else {
+      console.log("Room not found or invalid points value");
     }
   });
 
@@ -124,6 +130,7 @@ function updateLeaderboard(roomId: string) {
       name: user.name,
       points: user.points
     }));
+    console.log("Leaderboard data:", leaderboard);
     io.to(roomId).emit("updateLeaderboard", leaderboard);
   }
 }
