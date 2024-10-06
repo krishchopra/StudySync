@@ -38,7 +38,7 @@ export default function Session() {
         : "http://localhost:3001";
     const newSocket = io(url);
     setSocket(newSocket);
-
+  
     newSocket.on("connect", () => {
       console.log("Connected to server");
       if (sessionId && user) {
@@ -46,7 +46,7 @@ export default function Session() {
         newSocket.emit("setName", { roomId: sessionId, name: user.firstName });
       }
     });
-
+  
     newSocket.on("roomJoined", (id) => {
       setRoomId(id);
       const searchParams = new URLSearchParams(window.location.search);
@@ -56,21 +56,23 @@ export default function Session() {
       } else {
         toast.success("Session joined successfully!");
       }
-    });
 
+    });
+  
     newSocket.on("roomError", (message) => {
       router.push(`/session?error=${encodeURIComponent(message)}`);
     });
-
+  
     newSocket.on("chatMessage", (message: ChatMessage) => {
       console.log("Received message:", message);
       setMessages((prevMessages) => [...prevMessages, message]);
-    });
 
+    });
+  
     newSocket.on("updateLeaderboard", (updatedPlayers: Player[]) => {
       setPlayers(updatedPlayers);
     });
-
+  
     return () => {
       newSocket.disconnect();
     };
@@ -90,13 +92,51 @@ export default function Session() {
     }
   };
 
+  const askNotificationPermission = () => {
+    Notification.requestPermission().then((result) => {
+      console.log("Notification permission result: ", result); // Debug log
+      if (result === "granted") {
+        toast.success("Notifications enabled!");
+      } else {
+        toast.warn("You won't receive notifications.");
+      }
+    });
+  };
+
+  const createNotification = (message: string) => {
+    const [name, ...messageParts] = message.split(":");
+    const body = messageParts.join(":").trim();
+    
+
+    const notification = new Notification("Hey, you need to wake up", {
+      body: `${name}: ${body}`,
+      icon: "../icon.ico",
+      badge: "../icon.ico"
+    });
+  
+    notification.onclick = () => {
+      window.focus(); // Focus the window when the notification is clicked
+    };
+  };
+
+  const sendTestNotification = () => {
+    console.log("Button clicked"); // Check if the button click is detected
+    if (Notification.permission === "granted") {
+      console.log("Permission granted, sending notification"); // Check if permission is granted
+      createNotification("Test User: This is a test notification.");
+    } else {
+      console.log("Notification permission not granted"); // If not granted
+      toast.warn("You need to enable notifications first.");
+      askNotificationPermission();
+    }
+  };
+  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-6 flex">
         <div className="flex-grow mr-6">
-          <h1 className="text-3xl font-bold text-blue-800 mb-6">
-            Study Session
-          </h1>
+          <h1 className="text-3xl font-bold text-blue-800 mb-6">Study Session</h1>
           <p className="text-xl mb-4 text-black">
             Session ID: <span className="font-bold">{sessionId}</span>
           </p>
