@@ -222,12 +222,7 @@ export default function Session() {
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
             </div>
           ) : isQuizActive ? (
-            <QuizComponent
-              onQuizComplete={() => {
-                setIsQuizActive(false);
-                moveToNextSection();
-              }}
-            />
+            <QuizComponent />
           ) : (
             <div className="flex flex-col items-center">
               <button
@@ -245,7 +240,11 @@ export default function Session() {
         </div>
 
         <div className="w-1/3 space-y-6">
-          <Leaderboard players={players} />
+          <Leaderboard
+            players={players}
+            onToggleScoring={() => {}}
+            isScoringActive={false}
+          />
           <div>
             <h2 className="text-2xl font-bold text-blue-800 mb-4">Chat</h2>
             <div className="h-48 overflow-y-auto border rounded p-4 mb-4">

@@ -17,10 +17,15 @@ type VideoCameraProps = {
   onPointsUpdate: (points: number) => void;
 };
 
-export default function VideoCamera({ socket, roomId, onPointsUpdate }: VideoCameraProps) {
+export default function VideoCamera({
+  socket,
+  roomId,
+  onPointsUpdate,
+}: VideoCameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [apiResponse, setApiResponse] = useState<AttentionState>("Paying attention!");
+  const [apiResponse, setApiResponse] =
+    useState<AttentionState>("Paying attention!");
   const [attentionStates, setAttentionStates] = useState<AttentionState[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
 
