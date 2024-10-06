@@ -8,10 +8,17 @@ import "react-toastify/dist/ReactToastify.css";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import VideoCamera from "@/app/components/VideoCamera";
+import Leaderboard from "@/app/components/Leaderboard";
 
 type ChatMessage = {
   id: string;
   text: string;
+};
+
+type Player = {
+  id: string;
+  name: string;
+  points: number;
 };
 
 export default function Session() {
@@ -21,6 +28,7 @@ export default function Session() {
   const [inputMessage, setInputMessage] = useState("");
   const [socket, setSocket] = useState<Socket | null>(null);
   const [roomId, setRoomId] = useState("");
+  const [players, setPlayers] = useState<Player[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -59,6 +67,10 @@ export default function Session() {
       setMessages((prevMessages) => [...prevMessages, message]);
     });
 
+    newSocket.on("updateLeaderboard", (updatedPlayers: Player[]) => {
+      setPlayers(updatedPlayers);
+    });
+
     return () => {
       newSocket.disconnect();
     };
@@ -89,46 +101,44 @@ export default function Session() {
             Session ID: <span className="font-bold">{sessionId}</span>
           </p>
 
-          {user && (
-            <div className="mb-6">
-              <p className="text-lg text-black">Welcome, {user.firstName}!</p>
-            </div>
-          )}
-
           <div className="mb-6">
-            <VideoCamera />
+            {socket && <VideoCamera socket={socket} roomId={sessionId as string} />}
           </div>
         </div>
 
-        <div className="w-1/3">
-          <h2 className="text-2xl font-bold text-blue-800 mb-4">Chat</h2>
-          <div className="h-96 overflow-y-auto border rounded p-4 mb-4">
-            {messages.map((msg) => {
-              const [name, ...messageParts] = msg.text.split(":");
-              const message = messageParts.join(":").trim();
-              return (
-                <p key={msg.id} className="mb-2 text-black">
-                  <strong>{name}:</strong> {message}
-                </p>
-              );
-            })}
-          </div>
+        <div className="w-1/3 space-y-6">
+          <Leaderboard players={players} />
 
-          <form onSubmit={handleMessageSubmit}>
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="w-full p-2 border rounded text-black"
-            />
-            <button
-              type="submit"
-              className="mt-2 bg-blue-600 text-white px-4 py-2 rounded w-full"
-            >
-              Send
-            </button>
-          </form>
+          <div>
+            <h2 className="text-2xl font-bold text-blue-800 mb-4">Chat</h2>
+            <div className="h-96 overflow-y-auto border rounded p-4 mb-4">
+              {messages.map((msg) => {
+                const [name, ...messageParts] = msg.text.split(":");
+                const message = messageParts.join(":").trim();
+                return (
+                  <p key={msg.id} className="mb-2 text-black">
+                    <strong>{name}:</strong> {message}
+                  </p>
+                );
+              })}
+            </div>
+
+            <form onSubmit={handleMessageSubmit}>
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="w-full p-2 border rounded text-black"
+              />
+              <button
+                type="submit"
+                className="mt-2 bg-blue-600 text-white px-4 py-2 rounded w-full"
+              >
+                Send
+              </button>
+            </form>
+          </div>
         </div>
       </div>
       <ToastContainer position="bottom-right" />

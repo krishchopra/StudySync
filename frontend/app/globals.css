@@ -46,3 +46,12 @@ body {
 .animate-fade-in {
   animation: fadeIn 2s ease-out forwards;
 }
+
+/* .points {
+  visibility: hidden;
+  transition: visibility 0.3s;
+}
+
+.leaderboard-item:hover .points {
+  visibility: visible;
+} */
