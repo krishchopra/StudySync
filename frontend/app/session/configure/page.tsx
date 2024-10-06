@@ -25,25 +25,42 @@ export default function ConfigureSession() {
           : "http://localhost:3001";
       const newSocket = io(socketUrl);
 
-      newSocket.on("connect", () => {
-        newSocket.emit("createRoom", newSessionId, {
-          studyNotes,
-          quizInterval,
-          questionsPerQuiz,
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error("Server timeout"));
+        }, 20000); // 20 seconds timeout
+
+        newSocket.on("connect", () => {
+          newSocket.emit("createRoom", newSessionId, {
+            studyNotes,
+            quizInterval,
+            questionsPerQuiz,
+          });
+        });
+
+        newSocket.on("sectionsCreated", (sections) => {
+          console.log("Sections created:", sections);
+          clearTimeout(timeout);
+          resolve(sections);
+        });
+
+        newSocket.on("roomCreated", (roomId) => {
+          clearTimeout(timeout);
+          resolve(roomId);
+        });
+
+        newSocket.on("roomError", (errorMessage) => {
+          clearTimeout(timeout);
+          reject(new Error(errorMessage));
         });
       });
 
-      newSocket.on("roomCreated", (roomId) => {
-        router.push(`/session/${roomId}?created=true`);
-      });
-
-      newSocket.on("roomError", (errorMessage) => {
-        toast.error(errorMessage);
-        setIsCreating(false);
-      });
+      // If we get here, the room was created successfully and sections were generated
+      router.push(`/session/${newSessionId}?created=true`);
     } catch (error) {
       console.error("Error creating session:", error);
       toast.error("Failed to create session. Please try again.");
+    } finally {
       setIsCreating(false);
     }
   };

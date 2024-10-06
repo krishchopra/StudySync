@@ -9,6 +9,9 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import VideoCamera from "@/app/components/VideoCamera";
 import Leaderboard from "@/app/components/Leaderboard";
+import Sections from "@/app/components/Sections";
+import QuizButton from "@/app/components/QuizButton";
+import QuizComponent from "@/app/components/QuizComponent";
 
 type ChatMessage = {
   id: string;
@@ -21,6 +24,12 @@ type Player = {
   points: number;
 };
 
+type Section = {
+  id: string;
+  name: string;
+  description: string;
+};
+
 export default function Session() {
   const { sessionId } = useParams();
   const { user } = useUser();
@@ -30,6 +39,84 @@ export default function Session() {
   const [roomId, setRoomId] = useState("");
   const [players, setPlayers] = useState<Player[]>([]);
   const router = useRouter();
+  const [quiz, setQuiz] = useState<{
+    questions: Array<{
+      question: string;
+      options: string[];
+      correctAnswer: string;
+    }>;
+  }>({ questions: [] });
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(15);
+  const [isQuizActive, setIsQuizActive] = useState(false);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [isQuizLoading, setIsQuizLoading] = useState(false);
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [currentAnswer, setCurrentAnswer] = useState<string | null>(null);
+
+  const moveToNextSection = () => {
+    if (currentSectionIndex < sections.length - 1) {
+      setCurrentSectionIndex((prevIndex) => prevIndex + 1);
+    }
+  };
+
+  useEffect(() => {
+    if (socket) {
+      socket.on("quizGenerated", (generatedQuiz) => {
+        console.log("Quiz received:", generatedQuiz);
+        setQuiz(generatedQuiz);
+        setIsQuizActive(true);
+        setCurrentQuestionIndex(0);
+        setTimeLeft(15);
+        setIsQuizLoading(false);
+      });
+
+      socket.on("quizError", (message) => {
+        toast.error(message);
+        setIsQuizLoading(false);
+      });
+
+      socket.on("sectionsUpdated", (updatedSections: Section[]) => {
+        setSections(updatedSections);
+      });
+
+      return () => {
+        socket.off("quizGenerated");
+        socket.off("quizError");
+        socket.off("sectionsUpdated");
+      };
+    }
+  }, [socket]);
+
+  useEffect(() => {
+    if (isQuizActive && quiz && quiz.questions) {
+      const timer = setInterval(() => {
+        setTimeLeft((prevTime) => {
+          if (prevTime <= 1) {
+            if (currentQuestionIndex < quiz.questions.length - 1) {
+              setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
+              return 15;
+            } else {
+              setIsQuizActive(false);
+              clearInterval(timer);
+              moveToNextSection();
+              return 0;
+            }
+          }
+          return prevTime - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [isQuizActive, currentQuestionIndex, quiz, moveToNextSection]);
+
+  const handleQuizGenerate = () => {
+    setIsQuizLoading(true);
+    if (socket) {
+      socket.emit("generateQuiz", sessionId, currentSectionIndex);
+    }
+  };
 
   useEffect(() => {
     const url =
@@ -71,6 +158,23 @@ export default function Session() {
       setPlayers(updatedPlayers);
     });
 
+    newSocket.on("quizGenerated", (generatedQuiz) => {
+      console.log("Received quiz:", generatedQuiz);
+      setQuiz(generatedQuiz);
+      setIsQuizActive(true);
+      setCurrentQuestionIndex(0);
+      setTimeLeft(15);
+      setIsQuizLoading(false);
+    });
+
+    newSocket.on("quizError", (message) => {
+      toast.error(message);
+    });
+
+    newSocket.on("sectionsUpdated", (updatedSections: Section[]) => {
+      setSections(updatedSections);
+    });
+
     return () => {
       newSocket.disconnect();
     };
@@ -102,16 +206,49 @@ export default function Session() {
           </p>
 
           <div className="mb-6">
-            {socket && <VideoCamera socket={socket} roomId={sessionId as string} />}
+            {socket && (
+              <VideoCamera
+                socket={socket}
+                roomId={sessionId as string}
+                onPointsUpdate={(points) => {
+                  socket.emit("updatePoints", { roomId: sessionId, points });
+                }}
+              />
+            )}
           </div>
+
+          {isQuizLoading ? (
+            <div className="flex justify-center items-center h-40">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : isQuizActive ? (
+            <QuizComponent
+              onQuizComplete={() => {
+                setIsQuizActive(false);
+                moveToNextSection();
+              }}
+            />
+          ) : (
+            <div className="flex flex-col items-center">
+              <button
+                onClick={handleQuizGenerate}
+                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full"
+                disabled={currentSectionIndex >= sections.length}
+              >
+                Quiz for Section {currentSectionIndex + 1}
+              </button>
+              <p className="mt-2 text-gray-600">
+                Quizzes remaining: {sections.length - currentSectionIndex}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="w-1/3 space-y-6">
           <Leaderboard players={players} />
-
           <div>
             <h2 className="text-2xl font-bold text-blue-800 mb-4">Chat</h2>
-            <div className="h-96 overflow-y-auto border rounded p-4 mb-4">
+            <div className="h-48 overflow-y-auto border rounded p-4 mb-4">
               {messages.map((msg) => {
                 const [name, ...messageParts] = msg.text.split(":");
                 const message = messageParts.join(":").trim();
@@ -139,6 +276,7 @@ export default function Session() {
               </button>
             </form>
           </div>
+          <Sections sessionId={sessionId as string} socket={socket} />
         </div>
       </div>
       <ToastContainer position="bottom-right" />
